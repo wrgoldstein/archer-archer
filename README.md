@@ -32,7 +32,7 @@ Open a second tab/window to see another co-op player join.
 - **Shoot:** release to stand still. Your hero auto-acquires the nearest enemy and only shoots when a target exists.
 - **Upgrade:** walk into the purple `×3` sphere to unlock triple-shot arrows, or the orange fire sphere to unlock fire arrows.
 - Arrows stick briefly when their tips hit the arena walls.
-- Enemies have 2 HP and die after 2 arrow hits.
+- Enemies have 2 HP and die after 2 normal arrow hits; fire arrows deal double damage.
 
 ## Project layout
 
@@ -74,7 +74,7 @@ The code is now split so new systems have obvious homes:
 - Standing players auto-acquire the nearest slime.
 - Players do **not** fire if there are no enemies.
 - The purple upgrade sphere grants triple-shot; upgraded players fire three arrows per shot.
-- The orange upgrade sphere grants fire arrows; upgraded arrows render with fiery trails and glow.
+- The orange upgrade sphere grants fire arrows; upgraded arrows deal double damage and render with procedural shader flames, fiery trails, and glow.
 - Arrows damage enemies server-side; enemies die after 2 hits.
 - The next wave starts shortly after the previous wave is cleared.
 

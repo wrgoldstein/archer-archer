@@ -56,7 +56,7 @@ export class ClientGame {
     this.renderer.draw(now / 1000);
     emitPersistentEffects({ state: this.state, particles: this.particles, dt });
     this.particles.update(dt);
-    this.particles.draw(this.state.camera);
+    this.particles.draw(this.state.camera, now / 1000);
 
     requestAnimationFrame((nextNow) => this.frame(nextNow));
   }

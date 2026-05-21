@@ -29,7 +29,10 @@ export class ShaderParticleSystem {
       position: this.gl.getAttribLocation(this.program, 'a_position'),
       size: this.gl.getAttribLocation(this.program, 'a_size'),
       color: this.gl.getAttribLocation(this.program, 'a_color'),
+      style: this.gl.getAttribLocation(this.program, 'a_style'),
+      seed: this.gl.getAttribLocation(this.program, 'a_seed'),
       resolution: this.gl.getUniformLocation(this.program, 'u_resolution'),
+      time: this.gl.getUniformLocation(this.program, 'u_time'),
     };
   }
 
@@ -38,7 +41,7 @@ export class ShaderParticleSystem {
     this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  spawn({ x, y, vx, vy, size, color, life, layer = 'fx', mass = 1 }) {
+  spawn({ x, y, vx, vy, size, color, life, layer = 'fx', mass = 1, style = 'arcane' }) {
     if (!this.gl) return;
     if (this.items.length > 1400) this.items.splice(0, 60);
     this.items.push({
@@ -52,6 +55,8 @@ export class ShaderParticleSystem {
       maxLife: life,
       layer,
       mass,
+      style: style === 'fire' ? 1 : 0,
+      seed: Math.random() * 1000,
     });
     this.count = this.items.length;
   }
@@ -111,7 +116,7 @@ export class ShaderParticleSystem {
     }
   }
 
-  draw(camera) {
+  draw(camera, time = 0) {
     if (!this.gl) return;
     const gl = this.gl;
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
@@ -120,7 +125,7 @@ export class ShaderParticleSystem {
 
     if (this.items.length === 0) return;
 
-    const stride = 7;
+    const stride = 9;
     const data = new Float32Array(this.items.length * stride);
     for (let i = 0; i < this.items.length; i += 1) {
       const p = this.items[i];
@@ -134,6 +139,8 @@ export class ShaderParticleSystem {
       data[offset + 4] = p.color[1] / 255;
       data[offset + 5] = p.color[2] / 255;
       data[offset + 6] = p.color[3] * smoothstep(0, 0.25, t);
+      data[offset + 7] = p.style;
+      data[offset + 8] = p.seed;
     }
 
     gl.useProgram(this.program);
@@ -144,6 +151,7 @@ export class ShaderParticleSystem {
     gl.disable(gl.DEPTH_TEST);
 
     gl.uniform2f(this.locations.resolution, this.canvas.width, this.canvas.height);
+    gl.uniform1f(this.locations.time, time);
 
     const byteStride = stride * Float32Array.BYTES_PER_ELEMENT;
     gl.enableVertexAttribArray(this.locations.position);
@@ -152,6 +160,10 @@ export class ShaderParticleSystem {
     gl.vertexAttribPointer(this.locations.size, 1, gl.FLOAT, false, byteStride, 2 * 4);
     gl.enableVertexAttribArray(this.locations.color);
     gl.vertexAttribPointer(this.locations.color, 4, gl.FLOAT, false, byteStride, 3 * 4);
+    gl.enableVertexAttribArray(this.locations.style);
+    gl.vertexAttribPointer(this.locations.style, 1, gl.FLOAT, false, byteStride, 7 * 4);
+    gl.enableVertexAttribArray(this.locations.seed);
+    gl.vertexAttribPointer(this.locations.seed, 1, gl.FLOAT, false, byteStride, 8 * 4);
 
     gl.drawArrays(gl.POINTS, 0, this.items.length);
   }

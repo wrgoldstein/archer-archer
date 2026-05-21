@@ -7,12 +7,12 @@ export function handleArrowLifecycleEffects({ state, particles }) {
 
     if (!state.knownArrowIds.has(arrow.id)) {
       state.knownArrowIds.add(arrow.id);
-      emitMuzzleFlash(particles, arrow.x, arrow.y, arrow.angle, color);
+      emitMuzzleFlash(particles, arrow.x, arrow.y, arrow.angle, color, arrow.fire);
     }
 
     if (arrow.stuck && !state.knownStuckArrowIds.has(arrow.id)) {
       state.knownStuckArrowIds.add(arrow.id);
-      emitWallImpact(particles, arrow.x, arrow.y, arrow.angle, color);
+      emitWallImpact(particles, arrow.x, arrow.y, arrow.angle, arrow.fire ? '#fb923c' : color, arrow.fire);
     }
   }
 
@@ -33,19 +33,32 @@ export function emitPersistentEffects({ state, particles, dt }) {
   if (!particleBudgetOk(particles, state)) return;
 
   for (const arrow of state.arrows.values()) {
-    if (!arrow.stuck && Math.random() < 0.95) {
+    if (!arrow.stuck && Math.random() < (arrow.fire ? 1 : 0.95)) {
       const angle = Number.isFinite(arrow.angle) ? arrow.angle : Math.atan2(arrow.vy, arrow.vx);
-      const speed = 30 + Math.random() * 55;
-      const spread = (Math.random() - 0.5) * 0.9;
+      const speed = arrow.fire ? rand(70, 185) : 30 + Math.random() * 55;
+      const spread = (Math.random() - 0.5) * (arrow.fire ? 1.35 : 0.9);
       particles.spawn({
-        x: arrow.x - Math.cos(angle) * 25 + rand(-4, 4),
-        y: arrow.y - Math.sin(angle) * 25 + rand(-4, 4),
-        vx: -Math.cos(angle + spread) * speed + rand(-20, 20),
-        vy: -Math.sin(angle + spread) * speed + rand(-20, 20),
-        size: rand(8, 18),
-        color: hexToRgb(arrow.fire ? '#fb923c' : ownerColor(state, arrow.ownerId), 0.86),
-        life: rand(0.16, 0.38),
+        x: arrow.x - Math.cos(angle) * rand(12, 34) + rand(-5, 5),
+        y: arrow.y - Math.sin(angle) * rand(12, 34) + rand(-5, 5),
+        vx: -Math.cos(angle + spread) * speed + rand(-28, 28),
+        vy: -Math.sin(angle + spread) * speed + rand(-28, 28) - (arrow.fire ? rand(16, 70) : 0),
+        size: arrow.fire ? rand(18, 42) : rand(8, 18),
+        color: hexToRgb(arrow.fire ? (Math.random() < 0.35 ? '#fff7ad' : '#fb923c') : ownerColor(state, arrow.ownerId), arrow.fire ? rand(0.7, 1.0) : 0.86),
+        life: arrow.fire ? rand(0.22, 0.5) : rand(0.16, 0.38),
+        style: arrow.fire ? 'fire' : 'arcane',
       });
+      if (arrow.fire && Math.random() < 0.45) {
+        particles.spawn({
+          x: arrow.x - Math.cos(angle) * rand(20, 42),
+          y: arrow.y - Math.sin(angle) * rand(20, 42),
+          vx: rand(-22, 22),
+          vy: rand(-95, -25),
+          size: rand(10, 24),
+          color: hexToRgb('#7f1d1d', rand(0.2, 0.42)),
+          life: rand(0.35, 0.8),
+          style: 'arcane',
+        });
+      }
     }
   }
 
@@ -87,24 +100,30 @@ function upgradeColor(upgrade) {
   return upgrade.type === 'fire-arrows' ? '#fb923c' : '#a78bfa';
 }
 
-function emitMuzzleFlash(particles, x, y, angle, color) {
-  for (let i = 0; i < 22; i += 1) {
-    const spread = rand(-0.95, 0.95);
-    const speed = rand(50, 210);
+function emitMuzzleFlash(particles, x, y, angle, color, fire = false) {
+  const count = fire ? 42 : 22;
+  for (let i = 0; i < count; i += 1) {
+    const spread = fire ? rand(-1.35, 1.35) : rand(-0.95, 0.95);
+    const speed = fire ? rand(85, 330) : rand(50, 210);
     particles.spawn({
       x: x + rand(-5, 5),
       y: y + rand(-5, 5),
       vx: Math.cos(angle + spread) * speed,
-      vy: Math.sin(angle + spread) * speed,
-      size: rand(8, 26),
-      color: hexToRgb(i % 3 === 0 ? '#fff7ad' : color, rand(0.55, 0.95)),
-      life: rand(0.18, 0.52),
+      vy: Math.sin(angle + spread) * speed - (fire ? rand(25, 90) : 0),
+      size: fire ? rand(16, 44) : rand(8, 26),
+      color: hexToRgb(fire ? (i % 4 === 0 ? '#fff7ad' : '#fb923c') : i % 3 === 0 ? '#fff7ad' : color, fire ? rand(0.72, 1) : rand(0.55, 0.95)),
+      life: fire ? rand(0.24, 0.62) : rand(0.18, 0.52),
+      style: fire ? 'fire' : 'arcane',
     });
   }
 }
 
-function emitWallImpact(particles, x, y, angle, color) {
-  particles.addForceField({ x, y, radius: 90, strength: 420, mode: 'repel', life: 0.22 });
+function emitWallImpact(particles, x, y, angle, color, fire = false) {
+  particles.addForceField({ x, y, radius: fire ? 130 : 90, strength: fire ? 720 : 420, mode: 'repel', life: fire ? 0.34 : 0.22 });
+  if (fire) {
+    emitMuzzleFlash(particles, x, y, angle + Math.PI, color, true);
+    return;
+  }
   burst(particles, {
     x,
     y,

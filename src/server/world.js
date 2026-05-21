@@ -170,7 +170,7 @@ class GameWorld {
       if (!arrow.stuck) {
         const hitEnemy = this.findArrowEnemyHit(arrow);
         if (hitEnemy) {
-          this.damageEnemy(hitEnemy, 1);
+          this.damageEnemy(hitEnemy, arrow.fire ? 2 : 1);
           this.arrows.delete(id);
           continue;
         }

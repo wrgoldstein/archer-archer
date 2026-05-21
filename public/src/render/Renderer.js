@@ -284,7 +284,22 @@ export class Renderer {
     ctx.translate(p.x, p.y);
     ctx.rotate(angle);
     ctx.shadowColor = color;
-    ctx.shadowBlur = 16 * scale;
+    ctx.shadowBlur = (arrow.fire ? 30 : 16) * scale;
+
+    if (arrow.fire && !arrow.stuck) {
+      for (let i = 0; i < 4; i += 1) {
+        const flameLength = (46 + i * 12 + Math.sin(time * 18 + i + Number(arrow.id)) * 8) * scale;
+        const flameWidth = (13 - i * 1.8) * scale;
+        const flame = ctx.createRadialGradient(-flameLength * 0.45, 0, 1, -flameLength * 0.45, 0, flameLength);
+        flame.addColorStop(0, i === 0 ? 'rgba(255, 247, 173, 0.95)' : 'rgba(253, 186, 116, 0.8)');
+        flame.addColorStop(0.36, 'rgba(249, 115, 22, 0.48)');
+        flame.addColorStop(1, 'rgba(127, 29, 29, 0)');
+        ctx.fillStyle = flame;
+        ctx.beginPath();
+        ctx.ellipse(-20 * scale - flameLength * 0.32, Math.sin(time * 22 + i) * 3 * scale, flameLength * 0.55, flameWidth, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
 
     const pulse = arrow.stuck ? 1 : 1 + Math.sin(time * 28 + Number(arrow.id)) * 0.05;
     ctx.scale(scale * pulse, scale);
@@ -295,11 +310,20 @@ export class Renderer {
     trail.addColorStop(0.4, withAlpha(color, arrow.stuck ? 0.16 : 0.34));
     trail.addColorStop(1, arrow.fire ? 'rgba(255, 237, 213, 0.98)' : 'rgba(254, 240, 138, 0.95)');
     ctx.strokeStyle = trail;
-    ctx.lineWidth = arrow.stuck ? 4 : 5;
+    ctx.lineWidth = arrow.fire ? (arrow.stuck ? 6 : 8) : arrow.stuck ? 4 : 5;
     ctx.beginPath();
     ctx.moveTo(tailX, 0);
     ctx.lineTo(14, 0);
     ctx.stroke();
+
+    if (arrow.fire) {
+      ctx.strokeStyle = 'rgba(255, 247, 173, 0.9)';
+      ctx.lineWidth = arrow.stuck ? 2 : 3;
+      ctx.beginPath();
+      ctx.moveTo(-10, 0);
+      ctx.lineTo(18, 0);
+      ctx.stroke();
+    }
 
     ctx.fillStyle = arrow.fire ? '#fed7aa' : '#fff7ad';
     ctx.beginPath();
