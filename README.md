@@ -6,7 +6,7 @@ A tiny no-framework JavaScript demo for an Archero-like co-op arena:
 - raw WebSocket upgrade/frame handling (no Socket.io, no `ws` dependency)
 - authoritative server-side player/projectile state
 - browser 2D canvas for the arena and placeholder characters
-- raw WebGL shader layer for additive particles, spell auras, and arrow trails
+- raw WebGL shader layer for additive particles, spell auras, arrow trails, and wall impacts
 
 ## Run
 
@@ -28,6 +28,7 @@ Open a second tab/window to see another co-op player join.
 
 - **Move:** hold/click-drag/touch in a direction relative to your hero.
 - **Shoot:** release to stand still; the server auto-fires arrows along your last aim direction.
+- Arrows stick briefly when their tips hit the arena walls.
 
 ## File map
 

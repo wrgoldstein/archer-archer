@@ -11,7 +11,9 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const WORLD = { width: 1280, height: 720 };
 const PLAYER_SPEED = 245;
 const ARROW_SPEED = 650;
-const ARROW_TTL = 1.35;
+const ARROW_TTL = 3.0; // Safety timeout; arrows normally stop on the arena wall first.
+const STUCK_ARROW_TTL = 0.85;
+const ARROW_TIP_OFFSET = 24;
 const FIRE_COOLDOWN = 0.48;
 const FIRE_GRACE_AFTER_MOVING = 0.16;
 const SNAPSHOT_HZ = 30;
@@ -192,15 +194,29 @@ function gameTick() {
 
   for (const [id, arrow] of arrows) {
     arrow.age += dt;
-    arrow.x += arrow.vx * dt;
-    arrow.y += arrow.vy * dt;
-    if (
-      arrow.age > ARROW_TTL ||
-      arrow.x < -60 ||
-      arrow.y < -60 ||
-      arrow.x > WORLD.width + 60 ||
-      arrow.y > WORLD.height + 60
-    ) {
+
+    if (arrow.stuck) {
+      if (t - arrow.stuckAt > STUCK_ARROW_TTL) arrows.delete(id);
+      continue;
+    }
+
+    const nextX = arrow.x + arrow.vx * dt;
+    const nextY = arrow.y + arrow.vy * dt;
+    const wallHit = getArrowWallHit(arrow, nextX, nextY);
+
+    if (wallHit.hit) {
+      arrow.x += arrow.vx * dt * wallHit.alpha;
+      arrow.y += arrow.vy * dt * wallHit.alpha;
+      arrow.vx = 0;
+      arrow.vy = 0;
+      arrow.stuck = true;
+      arrow.stuckAt = t;
+    } else {
+      arrow.x = nextX;
+      arrow.y = nextY;
+    }
+
+    if (!arrow.stuck && arrow.age > ARROW_TTL) {
       arrows.delete(id);
     }
   }
@@ -224,8 +240,41 @@ function spawnArrow(player, t) {
     vy: Math.sin(angle) * ARROW_SPEED,
     angle,
     age: 0,
+    stuck: false,
+    stuckAt: null,
   });
   player.lastShotAt = t;
+}
+
+function getArrowWallHit(arrow, nextX, nextY) {
+  const tipDx = Math.cos(arrow.angle) * ARROW_TIP_OFFSET;
+  const tipDy = Math.sin(arrow.angle) * ARROW_TIP_OFFSET;
+  const startTipX = arrow.x + tipDx;
+  const startTipY = arrow.y + tipDy;
+  const endTipX = nextX + tipDx;
+  const endTipY = nextY + tipDy;
+
+  let alpha = 1;
+  let hit = false;
+
+  if (endTipX < 0 || endTipX > WORLD.width) {
+    const wallX = endTipX < 0 ? 0 : WORLD.width;
+    alpha = Math.min(alpha, safeSegmentAlpha(wallX, startTipX, endTipX));
+    hit = true;
+  }
+
+  if (endTipY < 0 || endTipY > WORLD.height) {
+    const wallY = endTipY < 0 ? 0 : WORLD.height;
+    alpha = Math.min(alpha, safeSegmentAlpha(wallY, startTipY, endTipY));
+    hit = true;
+  }
+
+  return { hit, alpha: clamp(alpha, 0, 1) };
+}
+
+function safeSegmentAlpha(target, start, end) {
+  const delta = end - start;
+  return Math.abs(delta) < 0.0001 ? 0 : (target - start) / delta;
 }
 
 function snapshot(t) {
@@ -250,6 +299,7 @@ function snapshot(t) {
       vy: round(a.vy),
       angle: round(a.angle),
       age: round(a.age),
+      stuck: a.stuck,
     })),
   };
 }

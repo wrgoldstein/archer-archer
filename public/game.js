@@ -12,6 +12,7 @@ const state = {
   players: new Map(),
   arrows: new Map(),
   knownArrowIds: new Set(),
+  knownStuckArrowIds: new Set(),
   pointer: {
     active: false,
     worldX: world.width / 2 + 1,
@@ -78,10 +79,18 @@ function applySnapshot(snapshot) {
       state.knownArrowIds.add(arrow.id);
       emitMuzzleFlash(arrow.x, arrow.y, arrow.angle, ownerColor(arrow.ownerId));
     }
+
+    if (arrow.stuck && !state.knownStuckArrowIds.has(arrow.id)) {
+      state.knownStuckArrowIds.add(arrow.id);
+      emitWallImpact(arrow.x, arrow.y, arrow.angle, ownerColor(arrow.ownerId));
+    }
   }
 
   for (const arrowId of [...state.knownArrowIds]) {
-    if (!state.arrows.has(arrowId)) state.knownArrowIds.delete(arrowId);
+    if (!state.arrows.has(arrowId)) {
+      state.knownArrowIds.delete(arrowId);
+      state.knownStuckArrowIds.delete(arrowId);
+    }
   }
 
   updateInputFromPointer();
@@ -253,7 +262,7 @@ function drawPlayer(player, time) {
 function drawArrow(arrow, time) {
   const p = worldToScreen(arrow.x, arrow.y);
   const scale = state.camera.scale;
-  const angle = Math.atan2(arrow.vy, arrow.vx);
+  const angle = Number.isFinite(arrow.angle) ? arrow.angle : Math.atan2(arrow.vy, arrow.vx);
   const color = ownerColor(arrow.ownerId);
 
   ctx.save();
@@ -262,17 +271,18 @@ function drawArrow(arrow, time) {
   ctx.shadowColor = color;
   ctx.shadowBlur = 16 * scale;
 
-  const pulse = 1 + Math.sin(time * 28 + Number(arrow.id)) * 0.05;
+  const pulse = arrow.stuck ? 1 : 1 + Math.sin(time * 28 + Number(arrow.id)) * 0.05;
   ctx.scale(scale * pulse, scale);
 
-  const trail = ctx.createLinearGradient(-34, 0, 16, 0);
+  const tailX = arrow.stuck ? -18 : -34;
+  const trail = ctx.createLinearGradient(tailX, 0, 16, 0);
   trail.addColorStop(0, 'rgba(251, 191, 36, 0)');
-  trail.addColorStop(0.4, withAlpha(color, 0.34));
+  trail.addColorStop(0.4, withAlpha(color, arrow.stuck ? 0.16 : 0.34));
   trail.addColorStop(1, 'rgba(254, 240, 138, 0.95)');
   ctx.strokeStyle = trail;
-  ctx.lineWidth = 5;
+  ctx.lineWidth = arrow.stuck ? 4 : 5;
   ctx.beginPath();
-  ctx.moveTo(-34, 0);
+  ctx.moveTo(tailX, 0);
   ctx.lineTo(14, 0);
   ctx.stroke();
 
@@ -293,8 +303,8 @@ function emitPersistentEffects(dt) {
   if (particles.count > 1100 || particleBudget <= 0) return;
 
   for (const arrow of state.arrows.values()) {
-    if (Math.random() < 0.95) {
-      const angle = Math.atan2(arrow.vy, arrow.vx);
+    if (!arrow.stuck && Math.random() < 0.95) {
+      const angle = Number.isFinite(arrow.angle) ? arrow.angle : Math.atan2(arrow.vy, arrow.vx);
       const speed = 30 + Math.random() * 55;
       const spread = (Math.random() - 0.5) * 0.9;
       particles.spawn({
@@ -338,6 +348,23 @@ function emitMuzzleFlash(x, y, angle, color) {
       size: rand(8, 26),
       color: hexToRgb(i % 3 === 0 ? '#fff7ad' : color, rand(0.55, 0.95)),
       life: rand(0.18, 0.52),
+    });
+  }
+}
+
+function emitWallImpact(x, y, angle, color) {
+  for (let i = 0; i < 34; i += 1) {
+    const spread = rand(-1.25, 1.25);
+    const bounceAngle = angle + Math.PI + spread;
+    const speed = rand(45, 260);
+    particles.spawn({
+      x: x + rand(-7, 7),
+      y: y + rand(-7, 7),
+      vx: Math.cos(bounceAngle) * speed,
+      vy: Math.sin(bounceAngle) * speed,
+      size: rand(7, 24),
+      color: hexToRgb(i % 4 === 0 ? '#fff7ad' : color, rand(0.48, 0.9)),
+      life: rand(0.16, 0.48),
     });
   }
 }
