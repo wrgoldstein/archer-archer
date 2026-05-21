@@ -54,6 +54,7 @@ class GameWorld {
       stoppedAt: nowSeconds(),
       connectedAt: nowSeconds(),
       tripleShot: false,
+      fireArrows: false,
     };
 
     this.players.set(id, player);
@@ -202,20 +203,33 @@ class GameWorld {
   }
 
   ensureUpgradeSpawned() {
-    if (this.players.size === 0 || this.upgrades.size > 0) return;
-    if (![...this.players.values()].some((player) => !player.tripleShot)) return;
+    if (this.players.size === 0) return;
+    const missingTypes = new Set();
+    for (const player of this.players.values()) {
+      if (!player.tripleShot) missingTypes.add('triple-shot');
+      if (!player.fireArrows) missingTypes.add('fire-arrows');
+    }
+
+    for (const upgrade of this.upgrades.values()) missingTypes.delete(upgrade.type);
+
+    for (const type of missingTypes) this.spawnUpgrade(type);
+  }
+
+  spawnUpgrade(type) {
     const id = String(this.nextUpgradeId++);
+    const position = upgradeSpawnPoint(type);
     this.upgrades.set(id, {
       id,
-      type: 'triple-shot',
-      x: WORLD.width / 2,
-      y: WORLD.height / 2 - 170,
+      type,
+      x: position.x,
+      y: position.y,
       radius: UPGRADE_RADIUS,
     });
   }
 
   pickupUpgrade(player, upgrade) {
     if (upgrade.type === 'triple-shot') player.tripleShot = true;
+    if (upgrade.type === 'fire-arrows') player.fireArrows = true;
     this.upgrades.delete(upgrade.id);
   }
 
@@ -310,6 +324,7 @@ class GameWorld {
       age: 0,
       stuck: false,
       stuckAt: null,
+      fire: player.fireArrows,
     });
   }
 
@@ -326,6 +341,7 @@ class GameWorld {
         moving: p.moving,
         aimAngle: round(p.aimAngle),
         tripleShot: p.tripleShot,
+        fireArrows: p.fireArrows,
       })),
       arrows: [...this.arrows.values()].map((a) => ({
         id: a.id,
@@ -337,6 +353,7 @@ class GameWorld {
         angle: round(a.angle),
         age: round(a.age),
         stuck: a.stuck,
+        fire: a.fire,
       })),
       enemies: [...this.enemies.values()].map((e) => ({
         id: e.id,
@@ -409,6 +426,11 @@ function enemySpawnPoint(index, count) {
   if (side === 1) return { x: WORLD.width - margin, y: clamp(along * WORLD.height, margin, WORLD.height - margin) };
   if (side === 2) return { x: clamp((1 - along) * WORLD.width, margin, WORLD.width - margin), y: WORLD.height - margin };
   return { x: margin, y: clamp((1 - along) * WORLD.height, margin, WORLD.height - margin) };
+}
+
+function upgradeSpawnPoint(type) {
+  if (type === 'fire-arrows') return { x: WORLD.width / 2, y: WORLD.height / 2 + 170 };
+  return { x: WORLD.width / 2, y: WORLD.height / 2 - 170 };
 }
 
 function distanceSquared(a, b) {

@@ -43,7 +43,7 @@ export function emitPersistentEffects({ state, particles, dt }) {
         vx: -Math.cos(angle + spread) * speed + rand(-20, 20),
         vy: -Math.sin(angle + spread) * speed + rand(-20, 20),
         size: rand(8, 18),
-        color: hexToRgb(ownerColor(state, arrow.ownerId), 0.86),
+        color: hexToRgb(arrow.fire ? '#fb923c' : ownerColor(state, arrow.ownerId), 0.86),
         life: rand(0.16, 0.38),
       });
     }
@@ -59,7 +59,7 @@ export function emitPersistentEffects({ state, particles, dt }) {
         vx: -Math.sin(angle) * rand(18, 60),
         vy: Math.cos(angle) * rand(18, 60),
         size: rand(9, 24),
-        color: hexToRgb(Math.random() < 0.35 ? '#ffffff' : '#a78bfa', rand(0.45, 0.82)),
+        color: hexToRgb(Math.random() < 0.35 ? '#ffffff' : upgradeColor(upgrade), rand(0.45, 0.82)),
         life: rand(0.35, 0.8),
       });
     }
@@ -81,6 +81,10 @@ export function emitPersistentEffects({ state, particles, dt }) {
       });
     }
   }
+}
+
+function upgradeColor(upgrade) {
+  return upgrade.type === 'fire-arrows' ? '#fb923c' : '#a78bfa';
 }
 
 function emitMuzzleFlash(particles, x, y, angle, color) {

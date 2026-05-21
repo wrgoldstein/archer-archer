@@ -128,11 +128,13 @@ export class Renderer {
     ctx.save();
     ctx.translate(p.x, p.y);
 
-    if (!player.moving || player.tripleShot) {
-      ctx.strokeStyle = withAlpha(player.tripleShot ? '#a78bfa' : color, player.tripleShot ? 0.72 : 0.46);
-      ctx.lineWidth = (player.tripleShot ? 4 : 3) * scale;
-      ctx.shadowBlur = (player.tripleShot ? 30 : 22) * scale;
-      ctx.shadowColor = player.tripleShot ? '#a78bfa' : color;
+    if (!player.moving || player.tripleShot || player.fireArrows) {
+      const auraColor = player.fireArrows ? '#fb923c' : player.tripleShot ? '#a78bfa' : color;
+      const auraAlpha = player.fireArrows || player.tripleShot ? 0.72 : 0.46;
+      ctx.strokeStyle = withAlpha(auraColor, auraAlpha);
+      ctx.lineWidth = (player.fireArrows || player.tripleShot ? 4 : 3) * scale;
+      ctx.shadowBlur = (player.fireArrows || player.tripleShot ? 30 : 22) * scale;
+      ctx.shadowColor = auraColor;
       ctx.beginPath();
       ctx.arc(0, 0, radius + 8 * scale + Math.sin(time * 7) * 2 * scale, 0, Math.PI * 2);
       ctx.stroke();
@@ -177,20 +179,22 @@ export class Renderer {
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.scale(pulse, pulse);
-    ctx.shadowColor = '#a78bfa';
+    const isFire = upgrade.type === 'fire-arrows';
+    const glowColor = isFire ? '#fb923c' : '#a78bfa';
+    ctx.shadowColor = glowColor;
     ctx.shadowBlur = 34 * scale;
 
     const sphere = ctx.createRadialGradient(-radius * 0.35, -radius * 0.45, radius * 0.15, 0, 0, radius * 1.15);
     sphere.addColorStop(0, '#ffffff');
-    sphere.addColorStop(0.18, '#ddd6fe');
-    sphere.addColorStop(0.58, '#8b5cf6');
-    sphere.addColorStop(1, '#312e81');
+    sphere.addColorStop(0.18, isFire ? '#fed7aa' : '#ddd6fe');
+    sphere.addColorStop(0.58, isFire ? '#f97316' : '#8b5cf6');
+    sphere.addColorStop(1, isFire ? '#7c2d12' : '#312e81');
     ctx.fillStyle = sphere;
     ctx.beginPath();
     ctx.arc(0, 0, radius, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.strokeStyle = 'rgba(216, 180, 254, 0.9)';
+    ctx.strokeStyle = isFire ? 'rgba(254, 215, 170, 0.92)' : 'rgba(216, 180, 254, 0.9)';
     ctx.lineWidth = 3 * scale;
     for (let i = 0; i < 3; i += 1) {
       ctx.rotate((Math.PI * 2) / 3);
@@ -204,7 +208,7 @@ export class Renderer {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.shadowBlur = 0;
-    ctx.fillText('×3', 0, 1 * scale);
+    ctx.fillText(isFire ? '🔥' : '×3', 0, 1 * scale);
     ctx.restore();
   }
 
@@ -274,7 +278,7 @@ export class Renderer {
     const p = worldToScreen(this.state.camera, arrow.x, arrow.y);
     const scale = this.state.camera.scale;
     const angle = Number.isFinite(arrow.angle) ? arrow.angle : Math.atan2(arrow.vy, arrow.vx);
-    const color = ownerColor(this.state, arrow.ownerId);
+    const color = arrow.fire ? '#fb923c' : ownerColor(this.state, arrow.ownerId);
 
     ctx.save();
     ctx.translate(p.x, p.y);
@@ -289,7 +293,7 @@ export class Renderer {
     const trail = ctx.createLinearGradient(tailX, 0, 16, 0);
     trail.addColorStop(0, 'rgba(251, 191, 36, 0)');
     trail.addColorStop(0.4, withAlpha(color, arrow.stuck ? 0.16 : 0.34));
-    trail.addColorStop(1, 'rgba(254, 240, 138, 0.95)');
+    trail.addColorStop(1, arrow.fire ? 'rgba(255, 237, 213, 0.98)' : 'rgba(254, 240, 138, 0.95)');
     ctx.strokeStyle = trail;
     ctx.lineWidth = arrow.stuck ? 4 : 5;
     ctx.beginPath();
@@ -297,7 +301,7 @@ export class Renderer {
     ctx.lineTo(14, 0);
     ctx.stroke();
 
-    ctx.fillStyle = '#fff7ad';
+    ctx.fillStyle = arrow.fire ? '#fed7aa' : '#fff7ad';
     ctx.beginPath();
     ctx.moveTo(24, 0);
     ctx.lineTo(7, -7);
