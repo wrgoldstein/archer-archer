@@ -11,6 +11,8 @@ const {
   ENEMY_RADIUS,
   ENEMY_MAX_HP,
   WAVE_SPAWN_DELAY,
+  UPGRADE_RADIUS,
+  UPGRADE_PICKUP_RADIUS,
   FIRE_COOLDOWN,
   FIRE_GRACE_AFTER_MOVING,
   SNAPSHOT_HZ,
@@ -23,11 +25,13 @@ class GameWorld {
     this.players = new Map();
     this.arrows = new Map();
     this.enemies = new Map();
+    this.upgrades = new Map();
     this.wave = 0;
     this.nextWaveAt = nowSeconds() + WAVE_SPAWN_DELAY;
     this.nextPlayerId = 1;
     this.nextArrowId = 1;
     this.nextEnemyId = 1;
+    this.nextUpgradeId = 1;
     this.lastTick = nowSeconds();
     this.lastSnapshot = 0;
   }
@@ -49,9 +53,11 @@ class GameWorld {
       lastShotAt: 0,
       stoppedAt: nowSeconds(),
       connectedAt: nowSeconds(),
+      tripleShot: false,
     };
 
     this.players.set(id, player);
+    this.ensureUpgradeSpawned();
     return player;
   }
 
@@ -89,6 +95,7 @@ class GameWorld {
     const dt = Math.min(0.05, t - this.lastTick);
     this.lastTick = t;
 
+    this.ensureUpgradeSpawned();
     this.maybeSpawnWave(t);
     this.updatePlayers(t, dt);
     this.updateEnemies(dt);
@@ -117,8 +124,19 @@ class GameWorld {
           t - player.stoppedAt > FIRE_GRACE_AFTER_MOVING &&
           t - player.lastShotAt > FIRE_COOLDOWN
         ) {
-          this.spawnArrow(player, t, target);
+          this.spawnArrows(player, t, target);
         }
+      }
+
+      this.checkUpgradePickups(player);
+    }
+  }
+
+  checkUpgradePickups(player) {
+    for (const upgrade of this.upgrades.values()) {
+      const pickupDistance = UPGRADE_PICKUP_RADIUS + upgrade.radius;
+      if (distanceSquared(player, upgrade) <= pickupDistance ** 2) {
+        this.pickupUpgrade(player, upgrade);
       }
     }
   }
@@ -181,6 +199,24 @@ class GameWorld {
         enemy.y += (dy / distance) * step;
       }
     }
+  }
+
+  ensureUpgradeSpawned() {
+    if (this.players.size === 0 || this.upgrades.size > 0) return;
+    if (![...this.players.values()].some((player) => !player.tripleShot)) return;
+    const id = String(this.nextUpgradeId++);
+    this.upgrades.set(id, {
+      id,
+      type: 'triple-shot',
+      x: WORLD.width / 2,
+      y: WORLD.height / 2 - 170,
+      radius: UPGRADE_RADIUS,
+    });
+  }
+
+  pickupUpgrade(player, upgrade) {
+    if (upgrade.type === 'triple-shot') player.tripleShot = true;
+    this.upgrades.delete(upgrade.id);
   }
 
   maybeSpawnWave(t) {
@@ -249,12 +285,18 @@ class GameWorld {
     return null;
   }
 
-  spawnArrow(player, t, target) {
+  spawnArrows(player, t, target) {
     const angle = target
       ? Math.atan2(target.y - player.y, target.x - player.x)
       : Number.isFinite(player.aimAngle)
         ? player.aimAngle
         : 0;
+    const spreads = player.tripleShot ? [-0.18, 0, 0.18] : [0];
+    for (const spread of spreads) this.spawnArrow(player, angle + spread);
+    player.lastShotAt = t;
+  }
+
+  spawnArrow(player, angle) {
     const muzzleOffset = 28;
     const id = String(this.nextArrowId++);
     this.arrows.set(id, {
@@ -269,7 +311,6 @@ class GameWorld {
       stuck: false,
       stuckAt: null,
     });
-    player.lastShotAt = t;
   }
 
   snapshot(t) {
@@ -284,6 +325,7 @@ class GameWorld {
         y: round(p.y),
         moving: p.moving,
         aimAngle: round(p.aimAngle),
+        tripleShot: p.tripleShot,
       })),
       arrows: [...this.arrows.values()].map((a) => ({
         id: a.id,
@@ -304,6 +346,13 @@ class GameWorld {
         radius: e.radius,
         hp: e.hp,
         maxHp: e.maxHp,
+      })),
+      upgrades: [...this.upgrades.values()].map((u) => ({
+        id: u.id,
+        type: u.type,
+        x: round(u.x),
+        y: round(u.y),
+        radius: u.radius,
       })),
       wave: this.wave,
     };

@@ -20,6 +20,7 @@ export class Renderer {
     this.drawArenaBackground(time);
     this.drawPointerGuide();
 
+    for (const upgrade of this.state.upgrades.values()) this.drawUpgrade(upgrade, time);
     for (const enemy of this.state.enemies.values()) this.drawEnemy(enemy, time);
     for (const arrow of this.state.arrows.values()) this.drawArrow(arrow, time);
     for (const player of this.state.players.values()) this.drawPlayer(player, time);
@@ -127,11 +128,11 @@ export class Renderer {
     ctx.save();
     ctx.translate(p.x, p.y);
 
-    if (!player.moving) {
-      ctx.strokeStyle = withAlpha(color, 0.46);
-      ctx.lineWidth = 3 * scale;
-      ctx.shadowBlur = 22 * scale;
-      ctx.shadowColor = color;
+    if (!player.moving || player.tripleShot) {
+      ctx.strokeStyle = withAlpha(player.tripleShot ? '#a78bfa' : color, player.tripleShot ? 0.72 : 0.46);
+      ctx.lineWidth = (player.tripleShot ? 4 : 3) * scale;
+      ctx.shadowBlur = (player.tripleShot ? 30 : 22) * scale;
+      ctx.shadowColor = player.tripleShot ? '#a78bfa' : color;
       ctx.beginPath();
       ctx.arc(0, 0, radius + 8 * scale + Math.sin(time * 7) * 2 * scale, 0, Math.PI * 2);
       ctx.stroke();
@@ -163,6 +164,47 @@ export class Renderer {
     ctx.fillStyle = isMe ? '#ffffff' : '#dbeafe';
     ctx.shadowBlur = 0;
     ctx.fillText(isMe ? 'YOU' : player.name, 0, -30 * scale);
+    ctx.restore();
+  }
+
+  drawUpgrade(upgrade, time) {
+    const ctx = this.ctx;
+    const p = worldToScreen(this.state.camera, upgrade.x, upgrade.y);
+    const scale = this.state.camera.scale;
+    const radius = (upgrade.radius || 24) * scale;
+    const pulse = 1 + Math.sin(time * 4.5 + Number(upgrade.id)) * 0.08;
+
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.scale(pulse, pulse);
+    ctx.shadowColor = '#a78bfa';
+    ctx.shadowBlur = 34 * scale;
+
+    const sphere = ctx.createRadialGradient(-radius * 0.35, -radius * 0.45, radius * 0.15, 0, 0, radius * 1.15);
+    sphere.addColorStop(0, '#ffffff');
+    sphere.addColorStop(0.18, '#ddd6fe');
+    sphere.addColorStop(0.58, '#8b5cf6');
+    sphere.addColorStop(1, '#312e81');
+    ctx.fillStyle = sphere;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(216, 180, 254, 0.9)';
+    ctx.lineWidth = 3 * scale;
+    for (let i = 0; i < 3; i += 1) {
+      ctx.rotate((Math.PI * 2) / 3);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, radius * 1.55, radius * 0.5, time * 1.5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = '#f5f3ff';
+    ctx.font = `${17 * scale}px ui-sans-serif, system-ui`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowBlur = 0;
+    ctx.fillText('×3', 0, 1 * scale);
     ctx.restore();
   }
 

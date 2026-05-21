@@ -22,6 +22,11 @@ export function handleArrowLifecycleEffects({ state, particles }) {
       state.knownStuckArrowIds.delete(arrowId);
     }
   }
+
+  for (const upgrade of state.upgrades.values()) state.knownUpgradeIds.add(upgrade.id);
+  for (const upgradeId of [...state.knownUpgradeIds]) {
+    if (!state.upgrades.has(upgradeId)) state.knownUpgradeIds.delete(upgradeId);
+  }
 }
 
 export function emitPersistentEffects({ state, particles, dt }) {
@@ -42,6 +47,23 @@ export function emitPersistentEffects({ state, particles, dt }) {
         life: rand(0.16, 0.38),
       });
     }
+  }
+
+  for (const upgrade of state.upgrades.values()) {
+    if (Math.random() < 0.9) {
+      const angle = Math.random() * Math.PI * 2;
+      const distance = rand(18, 42);
+      particles.spawn({
+        x: upgrade.x + Math.cos(angle) * distance,
+        y: upgrade.y + Math.sin(angle) * distance,
+        vx: -Math.sin(angle) * rand(18, 60),
+        vy: Math.cos(angle) * rand(18, 60),
+        size: rand(9, 24),
+        color: hexToRgb(Math.random() < 0.35 ? '#ffffff' : '#a78bfa', rand(0.45, 0.82)),
+        life: rand(0.35, 0.8),
+      });
+    }
+    particles.addForceField({ x: upgrade.x, y: upgrade.y, radius: 95, strength: 180, mode: 'vortex', life: 0.08 });
   }
 
   for (const player of state.players.values()) {
