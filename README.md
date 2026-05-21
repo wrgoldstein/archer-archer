@@ -6,7 +6,7 @@ A tiny no-framework JavaScript demo for an Archero-like co-op arena:
 - raw WebSocket upgrade/frame handling (no Socket.io, no `ws` dependency)
 - authoritative server-side player/projectile/enemy state
 - wave-based slime enemies with health bars
-- shader-styled upgrade orbs, including triple-shot and fire-arrow pickups
+- shader-styled upgrade orbs, including triple-shot, fire-arrow, and sprite-familiar pickups
 - browser 2D canvas for the arena and placeholder characters
 - raw WebGL shader layer for additive particles, spell auras, arrow trails, wall impacts, and particle force fields
 
@@ -30,7 +30,7 @@ Open a second tab/window to see another co-op player join.
 
 - **Move:** hold/click-drag/touch in a direction relative to your hero.
 - **Shoot:** release to stand still. Your hero auto-acquires the nearest enemy and only shoots when a target exists.
-- **Upgrade:** walk into the purple `×3` sphere to unlock triple-shot arrows, or the orange fire sphere to unlock fire arrows.
+- **Upgrade:** walk into the purple `×3` sphere to unlock triple-shot arrows, the orange fire sphere to unlock fire arrows, or the cyan sprite sphere to gain an orbiting auto-attacking familiar.
 - Arrows stick briefly when their tips hit the arena walls.
 - Enemies have 2 HP and die after 2 normal arrow hits; fire arrows deal double damage.
 
@@ -61,7 +61,7 @@ public/src/core/             # math/camera helpers
 The code is now split so new systems have obvious homes:
 
 - **More levels:** add level definitions to `public/src/game/registries.js`, then let the server include level IDs / map data in `welcome` or snapshots.
-- **More skills:** register skill metadata in `registries.js`; put server-authoritative cooldowns/projectile spawning in `src/server/world.js` or a future `src/server/skills/` folder. Triple-shot and fire arrows are the first examples.
+- **More skills:** register skill metadata in `registries.js`; put server-authoritative cooldowns/projectile spawning in `src/server/world.js` or a future `src/server/skills/` folder. Triple-shot, fire arrows, and sprite familiar are the first examples.
 - **More upgrades:** add authoritative pickup state to `GameWorld`, expose it in `snapshot()`, render it in `Renderer`, and add ambient particles in `public/src/particles/effects.js`.
 - **More enemies:** expand the authoritative `enemies` collection in `GameWorld`, include any new state in `snapshot()`, then add drawing in `Renderer`.
 - **Particle interactions:** `ShaderParticleSystem` now has `addForceField({ x, y, radius, strength, mode, life })` with `attract`, `repel`, and `vortex` modes. Wall impacts already use a short repel field, so future spells can push/pull/swirl existing particles without coupling to rendering.
@@ -75,6 +75,7 @@ The code is now split so new systems have obvious homes:
 - Players do **not** fire if there are no enemies.
 - The purple upgrade sphere grants triple-shot; upgraded players fire three arrows per shot.
 - The orange upgrade sphere grants fire arrows; upgraded arrows deal double damage and render with procedural shader flames, fiery trails, and glow.
+- The cyan sprite sphere grants an orbiting familiar that floats around the player and auto-fires sprite bolts at nearby enemies.
 - Arrows damage enemies server-side; enemies die after 2 hits.
 - The next wave starts shortly after the previous wave is cleared.
 

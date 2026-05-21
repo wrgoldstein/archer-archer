@@ -23,6 +23,7 @@ export class Renderer {
     for (const upgrade of this.state.upgrades.values()) this.drawUpgrade(upgrade, time);
     for (const enemy of this.state.enemies.values()) this.drawEnemy(enemy, time);
     for (const arrow of this.state.arrows.values()) this.drawArrow(arrow, time);
+    for (const player of this.state.players.values()) this.drawSprite(player, time);
     for (const player of this.state.players.values()) this.drawPlayer(player, time);
     this.drawWaveLabel();
 
@@ -128,12 +129,12 @@ export class Renderer {
     ctx.save();
     ctx.translate(p.x, p.y);
 
-    if (!player.moving || player.tripleShot || player.fireArrows) {
-      const auraColor = player.fireArrows ? '#fb923c' : player.tripleShot ? '#a78bfa' : color;
-      const auraAlpha = player.fireArrows || player.tripleShot ? 0.72 : 0.46;
+    if (!player.moving || player.tripleShot || player.fireArrows || player.sprite) {
+      const auraColor = player.sprite ? '#67e8f9' : player.fireArrows ? '#fb923c' : player.tripleShot ? '#a78bfa' : color;
+      const auraAlpha = player.fireArrows || player.tripleShot || player.sprite ? 0.72 : 0.46;
       ctx.strokeStyle = withAlpha(auraColor, auraAlpha);
-      ctx.lineWidth = (player.fireArrows || player.tripleShot ? 4 : 3) * scale;
-      ctx.shadowBlur = (player.fireArrows || player.tripleShot ? 30 : 22) * scale;
+      ctx.lineWidth = (player.fireArrows || player.tripleShot || player.sprite ? 4 : 3) * scale;
+      ctx.shadowBlur = (player.fireArrows || player.tripleShot || player.sprite ? 30 : 22) * scale;
       ctx.shadowColor = auraColor;
       ctx.beginPath();
       ctx.arc(0, 0, radius + 8 * scale + Math.sin(time * 7) * 2 * scale, 0, Math.PI * 2);
@@ -180,21 +181,22 @@ export class Renderer {
     ctx.translate(p.x, p.y);
     ctx.scale(pulse, pulse);
     const isFire = upgrade.type === 'fire-arrows';
-    const glowColor = isFire ? '#fb923c' : '#a78bfa';
+    const isSprite = upgrade.type === 'sprite';
+    const glowColor = isSprite ? '#67e8f9' : isFire ? '#fb923c' : '#a78bfa';
     ctx.shadowColor = glowColor;
     ctx.shadowBlur = 34 * scale;
 
     const sphere = ctx.createRadialGradient(-radius * 0.35, -radius * 0.45, radius * 0.15, 0, 0, radius * 1.15);
     sphere.addColorStop(0, '#ffffff');
-    sphere.addColorStop(0.18, isFire ? '#fed7aa' : '#ddd6fe');
-    sphere.addColorStop(0.58, isFire ? '#f97316' : '#8b5cf6');
-    sphere.addColorStop(1, isFire ? '#7c2d12' : '#312e81');
+    sphere.addColorStop(0.18, isSprite ? '#cffafe' : isFire ? '#fed7aa' : '#ddd6fe');
+    sphere.addColorStop(0.58, isSprite ? '#06b6d4' : isFire ? '#f97316' : '#8b5cf6');
+    sphere.addColorStop(1, isSprite ? '#164e63' : isFire ? '#7c2d12' : '#312e81');
     ctx.fillStyle = sphere;
     ctx.beginPath();
     ctx.arc(0, 0, radius, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.strokeStyle = isFire ? 'rgba(254, 215, 170, 0.92)' : 'rgba(216, 180, 254, 0.9)';
+    ctx.strokeStyle = isSprite ? 'rgba(165, 243, 252, 0.92)' : isFire ? 'rgba(254, 215, 170, 0.92)' : 'rgba(216, 180, 254, 0.9)';
     ctx.lineWidth = 3 * scale;
     for (let i = 0; i < 3; i += 1) {
       ctx.rotate((Math.PI * 2) / 3);
@@ -208,7 +210,49 @@ export class Renderer {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.shadowBlur = 0;
-    ctx.fillText(isFire ? '🔥' : '×3', 0, 1 * scale);
+    ctx.fillText(isSprite ? '✦' : isFire ? '🔥' : '×3', 0, 1 * scale);
+    ctx.restore();
+  }
+
+  drawSprite(player, time) {
+    if (!player.sprite) return;
+    const ctx = this.ctx;
+    const scale = this.state.camera.scale;
+    const angle = Number.isFinite(player.spriteAngle) ? player.spriteAngle : time * 2.25;
+    const bob = Math.sin(time * 5 + Number(player.id)) * 5;
+    const center = worldToScreen(this.state.camera, player.x, player.y);
+    const x = center.x + Math.cos(angle) * 46 * scale;
+    const y = center.y + Math.sin(angle) * 46 * scale + bob * scale;
+    const radius = 11 * scale;
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(103, 232, 249, 0.18)';
+    ctx.lineWidth = 1.5 * scale;
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, 46 * scale, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.translate(x, y);
+    ctx.shadowColor = '#67e8f9';
+    ctx.shadowBlur = 24 * scale;
+    const glow = ctx.createRadialGradient(-radius * 0.35, -radius * 0.45, 1, 0, 0, radius * 1.4);
+    glow.addColorStop(0, '#ffffff');
+    glow.addColorStop(0.28, '#a5f3fc');
+    glow.addColorStop(0.72, '#06b6d4');
+    glow.addColorStop(1, 'rgba(8, 47, 73, 0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(207, 250, 254, 0.88)';
+    ctx.lineWidth = 2 * scale;
+    for (let i = 0; i < 2; i += 1) {
+      ctx.rotate(Math.PI / 2);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, radius * 1.9, radius * 0.58, time * 2.4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     ctx.restore();
   }
 
@@ -278,7 +322,7 @@ export class Renderer {
     const p = worldToScreen(this.state.camera, arrow.x, arrow.y);
     const scale = this.state.camera.scale;
     const angle = Number.isFinite(arrow.angle) ? arrow.angle : Math.atan2(arrow.vy, arrow.vx);
-    const color = arrow.fire ? '#fb923c' : ownerColor(this.state, arrow.ownerId);
+    const color = arrow.sprite ? '#67e8f9' : arrow.fire ? '#fb923c' : ownerColor(this.state, arrow.ownerId);
 
     ctx.save();
     ctx.translate(p.x, p.y);
@@ -308,9 +352,9 @@ export class Renderer {
     const trail = ctx.createLinearGradient(tailX, 0, 16, 0);
     trail.addColorStop(0, 'rgba(251, 191, 36, 0)');
     trail.addColorStop(0.4, withAlpha(color, arrow.stuck ? 0.16 : 0.34));
-    trail.addColorStop(1, arrow.fire ? 'rgba(255, 237, 213, 0.98)' : 'rgba(254, 240, 138, 0.95)');
+    trail.addColorStop(1, arrow.sprite ? 'rgba(207, 250, 254, 0.98)' : arrow.fire ? 'rgba(255, 237, 213, 0.98)' : 'rgba(254, 240, 138, 0.95)');
     ctx.strokeStyle = trail;
-    ctx.lineWidth = arrow.fire ? (arrow.stuck ? 6 : 8) : arrow.stuck ? 4 : 5;
+    ctx.lineWidth = arrow.sprite ? (arrow.stuck ? 4 : 6) : arrow.fire ? (arrow.stuck ? 6 : 8) : arrow.stuck ? 4 : 5;
     ctx.beginPath();
     ctx.moveTo(tailX, 0);
     ctx.lineTo(14, 0);
@@ -325,7 +369,7 @@ export class Renderer {
       ctx.stroke();
     }
 
-    ctx.fillStyle = arrow.fire ? '#fed7aa' : '#fff7ad';
+    ctx.fillStyle = arrow.sprite ? '#cffafe' : arrow.fire ? '#fed7aa' : '#fff7ad';
     ctx.beginPath();
     ctx.moveTo(24, 0);
     ctx.lineTo(7, -7);

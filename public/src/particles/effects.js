@@ -3,7 +3,7 @@ import { burst, ownerColor, particleBudgetOk } from './ShaderParticleSystem.js';
 
 export function handleArrowLifecycleEffects({ state, particles }) {
   for (const arrow of state.arrows.values()) {
-    const color = ownerColor(state, arrow.ownerId);
+    const color = arrow.sprite ? '#67e8f9' : ownerColor(state, arrow.ownerId);
 
     if (!state.knownArrowIds.has(arrow.id)) {
       state.knownArrowIds.add(arrow.id);
@@ -43,8 +43,8 @@ export function emitPersistentEffects({ state, particles, dt }) {
         vx: -Math.cos(angle + spread) * speed + rand(-28, 28),
         vy: -Math.sin(angle + spread) * speed + rand(-28, 28) - (arrow.fire ? rand(16, 70) : 0),
         size: arrow.fire ? rand(18, 42) : rand(8, 18),
-        color: hexToRgb(arrow.fire ? (Math.random() < 0.35 ? '#fff7ad' : '#fb923c') : ownerColor(state, arrow.ownerId), arrow.fire ? rand(0.7, 1.0) : 0.86),
-        life: arrow.fire ? rand(0.22, 0.5) : rand(0.16, 0.38),
+        color: hexToRgb(arrow.sprite ? '#67e8f9' : arrow.fire ? (Math.random() < 0.35 ? '#fff7ad' : '#fb923c') : ownerColor(state, arrow.ownerId), arrow.fire ? rand(0.7, 1.0) : arrow.sprite ? rand(0.62, 0.92) : 0.86),
+        life: arrow.fire ? rand(0.22, 0.5) : arrow.sprite ? rand(0.2, 0.42) : rand(0.16, 0.38),
         style: arrow.fire ? 'fire' : 'arcane',
       });
       if (arrow.fire && Math.random() < 0.45) {
@@ -93,11 +93,28 @@ export function emitPersistentEffects({ state, particles, dt }) {
         life: rand(0.32, 0.7),
       });
     }
+
+    if (player.sprite && Math.random() < 0.75) {
+      const spriteAngle = Number.isFinite(player.spriteAngle) ? player.spriteAngle : Math.random() * Math.PI * 2;
+      const sx = player.x + Math.cos(spriteAngle) * 46;
+      const sy = player.y + Math.sin(spriteAngle) * 46;
+      particles.spawn({
+        x: sx + rand(-7, 7),
+        y: sy + rand(-7, 7),
+        vx: rand(-20, 20),
+        vy: rand(-38, 8),
+        size: rand(6, 17),
+        color: hexToRgb('#67e8f9', rand(0.38, 0.72)),
+        life: rand(0.22, 0.58),
+      });
+    }
   }
 }
 
 function upgradeColor(upgrade) {
-  return upgrade.type === 'fire-arrows' ? '#fb923c' : '#a78bfa';
+  if (upgrade.type === 'fire-arrows') return '#fb923c';
+  if (upgrade.type === 'sprite') return '#67e8f9';
+  return '#a78bfa';
 }
 
 function emitMuzzleFlash(particles, x, y, angle, color, fire = false) {

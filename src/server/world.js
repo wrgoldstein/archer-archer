@@ -13,6 +13,9 @@ const {
   WAVE_SPAWN_DELAY,
   UPGRADE_RADIUS,
   UPGRADE_PICKUP_RADIUS,
+  SPRITE_ORBIT_RADIUS,
+  SPRITE_COOLDOWN,
+  SPRITE_BOLT_SPEED,
   FIRE_COOLDOWN,
   FIRE_GRACE_AFTER_MOVING,
   SNAPSHOT_HZ,
@@ -55,6 +58,9 @@ class GameWorld {
       connectedAt: nowSeconds(),
       tripleShot: false,
       fireArrows: false,
+      sprite: false,
+      spriteAngle: (Number(id) * Math.PI * 2) / 3,
+      lastSpriteShotAt: 0,
     };
 
     this.players.set(id, player);
@@ -129,6 +135,7 @@ class GameWorld {
         }
       }
 
+      this.updateSprite(player, t, dt);
       this.checkUpgradePickups(player);
     }
   }
@@ -208,6 +215,7 @@ class GameWorld {
     for (const player of this.players.values()) {
       if (!player.tripleShot) missingTypes.add('triple-shot');
       if (!player.fireArrows) missingTypes.add('fire-arrows');
+      if (!player.sprite) missingTypes.add('sprite');
     }
 
     for (const upgrade of this.upgrades.values()) missingTypes.delete(upgrade.type);
@@ -230,6 +238,7 @@ class GameWorld {
   pickupUpgrade(player, upgrade) {
     if (upgrade.type === 'triple-shot') player.tripleShot = true;
     if (upgrade.type === 'fire-arrows') player.fireArrows = true;
+    if (upgrade.type === 'sprite') player.sprite = true;
     this.upgrades.delete(upgrade.id);
   }
 
@@ -299,6 +308,36 @@ class GameWorld {
     return null;
   }
 
+  updateSprite(player, t, dt) {
+    if (!player.sprite) return;
+    player.spriteAngle += dt * 2.25;
+    const target = this.findNearestEnemy(player);
+    if (!target || t - player.lastSpriteShotAt < SPRITE_COOLDOWN) return;
+
+    const sprite = spritePosition(player);
+    const angle = Math.atan2(target.y - sprite.y, target.x - sprite.x);
+    this.spawnSpriteBolt(player, sprite, angle);
+    player.lastSpriteShotAt = t;
+  }
+
+  spawnSpriteBolt(player, position, angle) {
+    const id = String(this.nextArrowId++);
+    this.arrows.set(id, {
+      id,
+      ownerId: player.id,
+      x: position.x,
+      y: position.y,
+      vx: Math.cos(angle) * SPRITE_BOLT_SPEED,
+      vy: Math.sin(angle) * SPRITE_BOLT_SPEED,
+      angle,
+      age: 0,
+      stuck: false,
+      stuckAt: null,
+      fire: false,
+      sprite: true,
+    });
+  }
+
   spawnArrows(player, t, target) {
     const angle = target
       ? Math.atan2(target.y - player.y, target.x - player.x)
@@ -325,6 +364,7 @@ class GameWorld {
       stuck: false,
       stuckAt: null,
       fire: player.fireArrows,
+      sprite: false,
     });
   }
 
@@ -342,6 +382,8 @@ class GameWorld {
         aimAngle: round(p.aimAngle),
         tripleShot: p.tripleShot,
         fireArrows: p.fireArrows,
+        sprite: p.sprite,
+        spriteAngle: round(p.spriteAngle),
       })),
       arrows: [...this.arrows.values()].map((a) => ({
         id: a.id,
@@ -354,6 +396,7 @@ class GameWorld {
         age: round(a.age),
         stuck: a.stuck,
         fire: a.fire,
+        sprite: a.sprite,
       })),
       enemies: [...this.enemies.values()].map((e) => ({
         id: e.id,
@@ -430,7 +473,15 @@ function enemySpawnPoint(index, count) {
 
 function upgradeSpawnPoint(type) {
   if (type === 'fire-arrows') return { x: WORLD.width / 2, y: WORLD.height / 2 + 170 };
+  if (type === 'sprite') return { x: WORLD.width / 2 - 210, y: WORLD.height / 2 };
   return { x: WORLD.width / 2, y: WORLD.height / 2 - 170 };
+}
+
+function spritePosition(player) {
+  return {
+    x: player.x + Math.cos(player.spriteAngle) * SPRITE_ORBIT_RADIUS,
+    y: player.y + Math.sin(player.spriteAngle) * SPRITE_ORBIT_RADIUS,
+  };
 }
 
 function distanceSquared(a, b) {
