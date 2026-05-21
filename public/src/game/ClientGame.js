@@ -42,6 +42,8 @@ export class ClientGame {
   applySnapshot(snapshot) {
     this.state.players = new Map(snapshot.players.map((player) => [player.id, player]));
     this.state.arrows = new Map(snapshot.arrows.map((arrow) => [arrow.id, arrow]));
+    this.state.enemies = new Map((snapshot.enemies || []).map((enemy) => [enemy.id, enemy]));
+    this.state.wave = snapshot.wave || 0;
     handleArrowLifecycleEffects({ state: this.state, particles: this.particles });
     this.input.updateInputFromPointer();
   }

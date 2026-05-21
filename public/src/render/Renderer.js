@@ -20,8 +20,10 @@ export class Renderer {
     this.drawArenaBackground(time);
     this.drawPointerGuide();
 
+    for (const enemy of this.state.enemies.values()) this.drawEnemy(enemy, time);
     for (const arrow of this.state.arrows.values()) this.drawArrow(arrow, time);
     for (const player of this.state.players.values()) this.drawPlayer(player, time);
+    this.drawWaveLabel();
 
     ctx.restore();
   }
@@ -161,6 +163,67 @@ export class Renderer {
     ctx.fillStyle = isMe ? '#ffffff' : '#dbeafe';
     ctx.shadowBlur = 0;
     ctx.fillText(isMe ? 'YOU' : player.name, 0, -30 * scale);
+    ctx.restore();
+  }
+
+  drawEnemy(enemy, time) {
+    const ctx = this.ctx;
+    const p = worldToScreen(this.state.camera, enemy.x, enemy.y);
+    const scale = this.state.camera.scale;
+    const radius = (enemy.radius || 22) * scale;
+    const hpRatio = Math.max(0, Math.min(1, enemy.hp / enemy.maxHp));
+    const wobble = Math.sin(time * 5 + Number(enemy.id)) * 0.08;
+
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.scale(1 + wobble, 1 - wobble * 0.55);
+
+    ctx.shadowColor = '#fb7185';
+    ctx.shadowBlur = 16 * scale;
+    const body = ctx.createRadialGradient(-radius * 0.35, -radius * 0.45, radius * 0.2, 0, 0, radius * 1.1);
+    body.addColorStop(0, '#fecdd3');
+    body.addColorStop(0.45, '#fb7185');
+    body.addColorStop(1, '#9f1239');
+    ctx.fillStyle = body;
+    ctx.strokeStyle = '#ffe4e6';
+    ctx.lineWidth = 2 * scale;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#3f0b18';
+    ctx.beginPath();
+    ctx.arc(-7 * scale, -3 * scale, 3 * scale, 0, Math.PI * 2);
+    ctx.arc(7 * scale, -3 * scale, 3 * scale, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Health bar stays axis-aligned even though the slime body wobbles.
+    ctx.save();
+    const barWidth = 48 * scale;
+    const barHeight = 6 * scale;
+    const barX = p.x - barWidth / 2;
+    const barY = p.y - radius - 16 * scale;
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+    ctx.fillRect(barX, barY, barWidth, barHeight);
+    ctx.fillStyle = hpRatio > 0.5 ? '#86efac' : '#fbbf24';
+    if (hpRatio <= 0.25) ctx.fillStyle = '#fb7185';
+    ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(barX, barY, barWidth, barHeight);
+    ctx.restore();
+  }
+
+  drawWaveLabel() {
+    if (!this.state.wave) return;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.fillStyle = 'rgba(219, 234, 254, 0.8)';
+    ctx.font = '13px ui-sans-serif, system-ui';
+    ctx.textAlign = 'right';
+    ctx.fillText(`Wave ${this.state.wave} · ${this.state.enemies.size} enemies`, this.canvas.clientWidth - 18, 28);
     ctx.restore();
   }
 

@@ -8,6 +8,10 @@ module.exports = {
   ARROW_TTL: 3.0, // Safety timeout; arrows normally stop on the arena wall first.
   STUCK_ARROW_TTL: 0.85,
   ARROW_TIP_OFFSET: 24,
+  ENEMY_SPEED: 82,
+  ENEMY_RADIUS: 22,
+  ENEMY_MAX_HP: 2,
+  WAVE_SPAWN_DELAY: 1.2,
   FIRE_COOLDOWN: 0.48,
   FIRE_GRACE_AFTER_MOVING: 0.16,
   SNAPSHOT_HZ: 30,

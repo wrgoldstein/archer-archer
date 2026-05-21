@@ -6,6 +6,8 @@ export function createClientState(world) {
     connected: false,
     players: new Map(),
     arrows: new Map(),
+    enemies: new Map(),
+    wave: 0,
     // These lifecycle sets let the effects layer run one-shot effects when
     // network state changes, without baking particle logic into the protocol.
     knownArrowIds: new Set(),

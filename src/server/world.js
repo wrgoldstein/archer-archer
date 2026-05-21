@@ -7,6 +7,10 @@ const {
   ARROW_TTL,
   STUCK_ARROW_TTL,
   ARROW_TIP_OFFSET,
+  ENEMY_SPEED,
+  ENEMY_RADIUS,
+  ENEMY_MAX_HP,
+  WAVE_SPAWN_DELAY,
   FIRE_COOLDOWN,
   FIRE_GRACE_AFTER_MOVING,
   SNAPSHOT_HZ,
@@ -18,8 +22,12 @@ class GameWorld {
     this.broadcast = broadcast;
     this.players = new Map();
     this.arrows = new Map();
+    this.enemies = new Map();
+    this.wave = 0;
+    this.nextWaveAt = nowSeconds() + WAVE_SPAWN_DELAY;
     this.nextPlayerId = 1;
     this.nextArrowId = 1;
+    this.nextEnemyId = 1;
     this.lastTick = nowSeconds();
     this.lastSnapshot = 0;
   }
@@ -81,7 +89,9 @@ class GameWorld {
     const dt = Math.min(0.05, t - this.lastTick);
     this.lastTick = t;
 
+    this.maybeSpawnWave(t);
     this.updatePlayers(t, dt);
+    this.updateEnemies(dt);
     this.updateArrows(t, dt);
 
     if (t - this.lastSnapshot >= 1 / SNAPSHOT_HZ) {
@@ -97,12 +107,18 @@ class GameWorld {
         player.y += player.dy * PLAYER_SPEED * dt;
         player.x = clamp(player.x, 30, WORLD.width - 30);
         player.y = clamp(player.y, 30, WORLD.height - 30);
-      } else if (
-        t - player.connectedAt > 0.25 &&
-        t - player.stoppedAt > FIRE_GRACE_AFTER_MOVING &&
-        t - player.lastShotAt > FIRE_COOLDOWN
-      ) {
-        this.spawnArrow(player, t);
+      } else {
+        const target = this.findNearestEnemy(player);
+        if (target) player.aimAngle = Math.atan2(target.y - player.y, target.x - player.x);
+
+        if (
+          target &&
+          t - player.connectedAt > 0.25 &&
+          t - player.stoppedAt > FIRE_GRACE_AFTER_MOVING &&
+          t - player.lastShotAt > FIRE_COOLDOWN
+        ) {
+          this.spawnArrow(player, t, target);
+        }
       }
     }
   }
@@ -132,14 +148,113 @@ class GameWorld {
         arrow.y = nextY;
       }
 
+      if (!arrow.stuck) {
+        const hitEnemy = this.findArrowEnemyHit(arrow);
+        if (hitEnemy) {
+          this.damageEnemy(hitEnemy, 1);
+          this.arrows.delete(id);
+          continue;
+        }
+      }
+
       if (!arrow.stuck && arrow.age > ARROW_TTL) {
         this.arrows.delete(id);
       }
     }
   }
 
-  spawnArrow(player, t) {
-    const angle = Number.isFinite(player.aimAngle) ? player.aimAngle : 0;
+  updateEnemies(dt) {
+    for (const enemy of this.enemies.values()) {
+      const target = this.findNearestPlayer(enemy);
+      if (!target) continue;
+
+      const dx = target.x - enemy.x;
+      const dy = target.y - enemy.y;
+      const distance = Math.hypot(dx, dy);
+      if (distance < 0.0001) continue;
+
+      // Stop just outside the player for now. Player damage can live here later.
+      const desiredDistance = ENEMY_RADIUS + 22;
+      if (distance > desiredDistance) {
+        const step = Math.min(distance - desiredDistance, ENEMY_SPEED * dt);
+        enemy.x += (dx / distance) * step;
+        enemy.y += (dy / distance) * step;
+      }
+    }
+  }
+
+  maybeSpawnWave(t) {
+    if (this.players.size === 0 || this.enemies.size > 0 || t < this.nextWaveAt) return;
+
+    this.wave += 1;
+    const count = Math.min(6 + this.wave * 2, 24);
+    for (let i = 0; i < count; i += 1) this.spawnEnemy(i, count);
+  }
+
+  spawnEnemy(index, count) {
+    const id = String(this.nextEnemyId++);
+    const spawn = enemySpawnPoint(index, count);
+    this.enemies.set(id, {
+      id,
+      type: 'slime',
+      x: spawn.x,
+      y: spawn.y,
+      radius: ENEMY_RADIUS,
+      hp: ENEMY_MAX_HP,
+      maxHp: ENEMY_MAX_HP,
+    });
+  }
+
+  damageEnemy(enemy, damage) {
+    enemy.hp -= damage;
+    if (enemy.hp <= 0) {
+      this.enemies.delete(enemy.id);
+      if (this.enemies.size === 0) this.nextWaveAt = nowSeconds() + WAVE_SPAWN_DELAY;
+    }
+  }
+
+  findNearestEnemy(player) {
+    let best = null;
+    let bestDistanceSq = Infinity;
+    for (const enemy of this.enemies.values()) {
+      const distanceSq = distanceSquared(player, enemy);
+      if (distanceSq < bestDistanceSq) {
+        best = enemy;
+        bestDistanceSq = distanceSq;
+      }
+    }
+    return best;
+  }
+
+  findNearestPlayer(enemy) {
+    let best = null;
+    let bestDistanceSq = Infinity;
+    for (const player of this.players.values()) {
+      const distanceSq = distanceSquared(enemy, player);
+      if (distanceSq < bestDistanceSq) {
+        best = player;
+        bestDistanceSq = distanceSq;
+      }
+    }
+    return best;
+  }
+
+  findArrowEnemyHit(arrow) {
+    const tipX = arrow.x + Math.cos(arrow.angle) * ARROW_TIP_OFFSET;
+    const tipY = arrow.y + Math.sin(arrow.angle) * ARROW_TIP_OFFSET;
+    for (const enemy of this.enemies.values()) {
+      const hitDistance = enemy.radius + 8;
+      if ((tipX - enemy.x) ** 2 + (tipY - enemy.y) ** 2 <= hitDistance ** 2) return enemy;
+    }
+    return null;
+  }
+
+  spawnArrow(player, t, target) {
+    const angle = target
+      ? Math.atan2(target.y - player.y, target.x - player.x)
+      : Number.isFinite(player.aimAngle)
+        ? player.aimAngle
+        : 0;
     const muzzleOffset = 28;
     const id = String(this.nextArrowId++);
     this.arrows.set(id, {
@@ -181,6 +296,16 @@ class GameWorld {
         age: round(a.age),
         stuck: a.stuck,
       })),
+      enemies: [...this.enemies.values()].map((e) => ({
+        id: e.id,
+        type: e.type,
+        x: round(e.x),
+        y: round(e.y),
+        radius: e.radius,
+        hp: e.hp,
+        maxHp: e.maxHp,
+      })),
+      wave: this.wave,
     };
   }
 }
@@ -223,6 +348,22 @@ function spawnPoint(index) {
     x: WORLD.width / 2 + Math.cos(angle) * ring,
     y: WORLD.height / 2 + Math.sin(angle) * ring,
   };
+}
+
+function enemySpawnPoint(index, count) {
+  const side = index % 4;
+  const jitter = ((index * 37) % 100) / 100;
+  const along = (index + 0.5 + jitter * 0.55) / count;
+  const margin = 34;
+
+  if (side === 0) return { x: clamp(along * WORLD.width, margin, WORLD.width - margin), y: margin };
+  if (side === 1) return { x: WORLD.width - margin, y: clamp(along * WORLD.height, margin, WORLD.height - margin) };
+  if (side === 2) return { x: clamp((1 - along) * WORLD.width, margin, WORLD.width - margin), y: WORLD.height - margin };
+  return { x: margin, y: clamp((1 - along) * WORLD.height, margin, WORLD.height - margin) };
+}
+
+function distanceSquared(a, b) {
+  return (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
 }
 
 function clamp(value, min, max) {
