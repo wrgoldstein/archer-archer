@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Co-op Archero Starter</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <main id="stage" aria-label="Co-op Archero game board">
+      <canvas id="game"></canvas>
+      <canvas id="fx"></canvas>
+      <section id="hud">
+        <h1>Co-op Archero Starter</h1>
+        <p><strong>Move:</strong> hold / drag / touch in a direction relative to your hero.</p>
+        <p><strong>Fire:</strong> release to stand still. Your hero auto-shoots arrows.</p>
+        <p id="status">Connecting…</p>
+      </section>
+    </main>
+    <script src="/game.js" defer></script>
+  </body>
+</html>

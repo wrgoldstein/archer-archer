@@ -1,0 +1,12 @@
+{
+  "name": "coop-archero-starter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "No-framework co-op Archero-style starter demo with raw WebSockets and shader particles.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
